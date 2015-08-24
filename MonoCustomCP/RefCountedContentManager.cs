@@ -1,0 +1,141 @@
+using System;
+using System.Collections.Concurrent;
+using System.Globalization;
+using System.Threading;
+using Microsoft.Xna.Framework.Content;
+using System.Diagnostics.Contracts;
+
+namespace MonoCustomCP {
+    /// <summary> Each <see cref="Load{T}"/> increases asset refcount, each <see cref="Unload(string)"/>
+    ///  decreases asset refcount. Asset will be disposed when its refcount reaches 0 or total
+    ///  <see cref="Unload()"/> will be called. </summary>
+    /// <remarks>All methods are thread-safe, but you still should sync them when needed,
+    ///  e.g. loading from one thread while unloading from another. </remarks>
+    public class RefCountedContentManager : ContentManager {
+        /// <summary> Initializes a new instance of the <see cref="RefCountedContentManager" /> class. </summary>
+        /// <param name="serviceProvider">The service provider.</param>
+        /// <param name="rootDirectory">Content root.</param>
+        public RefCountedContentManager(IServiceProvider serviceProvider, string rootDirectory)
+                    : base(serviceProvider, rootDirectory) {
+            _assets = new ConcurrentDictionary<string, AssetHandle>();
+            _references = new RefCounter<AssetHandle>();
+            _references.Released += commonAsset => {
+                if (_assets.TryRemove(commonAsset.Name, out commonAsset)) {
+                    var customDisposal = CustomContentPipeline.FindUnload(commonAsset.Asset?.GetType());
+                    customDisposal?.Invoke(this, commonAsset.Asset, commonAsset.Name);
+                    commonAsset.Dispose();  // Possible multiple dispose calls should be okay.
+                }
+            };
+        }
+
+        /// <summary> Asset holder, uses asset name as a key. </summary>
+        private readonly ConcurrentDictionary<string, AssetHandle> _assets;
+        /// <summary> Reference counting for common assets. </summary>
+        private readonly RefCounter<AssetHandle> _references;
+
+        /// <summary> Gets previously loaded asset without increasing its refcount. </summary>
+        /// <typeparam name="T">Asset type.</typeparam>
+        /// <param name="assetName">Name of the asset.</param>
+        /// <returns>Found asset or null.</returns>
+        public T Find<T>(string assetName) {
+            Contract.Requires(!String.IsNullOrEmpty(assetName));
+
+            assetName = CustomContentPipeline.GetCleanPath(assetName);
+            var found = default(T);
+            AssetHandle assetHandle;
+            if (_assets.TryGetValue(assetName, out assetHandle)) {
+                found = (T)assetHandle.Asset;
+            }
+
+            return found;
+        }
+
+        /// <summary> Loads asset or gets already loaded asset using the specified asset name.
+        ///  Increases asset refcount. </summary>
+        /// <typeparam name="T">Asset type.</typeparam>
+        /// <param name="assetName">Name of the asset.</param>
+        /// <returns>Loaded or found asset.</returns>
+        public override T Load<T>(string assetName) {
+            Contract.Requires(!String.IsNullOrEmpty(assetName));
+
+            assetName = CustomContentPipeline.GetCleanPath(assetName);
+            object loadedAsset = null;
+            _assets.AddOrUpdate(assetName,
+                _ => {
+                    var freshAsset = new AssetHandle { Asset = CustomLoad<T>(assetName), Name = assetName };
+                    loadedAsset = freshAsset.Asset;
+                    _references.Retain(freshAsset);
+                    return freshAsset;
+                },
+
+                (_, existingAsset) => {
+                    loadedAsset = existingAsset.Asset;
+                    _references.Retain(existingAsset);
+                    return existingAsset;
+                });
+
+            return (T)loadedAsset;
+        }
+
+        /// <summary> Unloads all loaded assets regardless of their refcount. </summary>
+        public override void Unload() {
+            // Clear references first, since reference release logic uses asset map.
+            _references.Clear();
+            _assets.Clear();
+        }
+
+        /// <summary> Unloads asset with the specified asset name. Decreases asset refcount. </summary>
+        /// <param name="assetName">Name of the asset to unload.</param>
+        public void Unload(string assetName) {
+            Contract.Requires(!String.IsNullOrEmpty(assetName));
+
+            assetName = CustomContentPipeline.GetCleanPath(assetName);
+            AssetHandle assetHandle;
+            if (_assets.TryGetValue(assetName, out assetHandle)) {
+                _references.Release(assetHandle);
+            }
+        }
+
+        /// <summary> Returns a <see cref="string" /> that represents this instance. </summary>
+        /// <returns> A <see cref="string" /> that represents this instance. </returns>
+        public override string ToString() {
+            return _assets.Count.ToString(CultureInfo.InvariantCulture) + " shared assets";
+        }
+
+        /// <summary> Loads asset either via custom load method for an asset or built-in
+        ///  <see cref="ContentManager.ReadAsset{T}"/>. </summary>
+        private object CustomLoad<T>(string assetName) {
+            Contract.Requires(!String.IsNullOrEmpty(assetName));
+            Contract.Ensures(Contract.Result<object>() != null);
+
+            object asset;
+            var customLoad = CustomContentPipeline.FindLoad(typeof(T));
+            if (customLoad != null) {   // There is a custom load method for current asset type.
+                asset = customLoad(this, assetName);
+                if (asset == null) {
+                    throw new ContentLoadException("Custom loading failed for asset '" + assetName + "'");
+                }
+            } else {    // We are loading a standard asset.
+                asset = ReadAsset<T>(assetName, _ => { });
+            }
+
+            return asset;
+        }
+
+        private class AssetHandle {
+            public object Asset;
+            public string Name;
+
+            public void Dispose() {
+                var asset = Interlocked.Exchange(ref Asset, null);
+                (asset as IDisposable)?.Dispose();
+            }
+
+            /// <summary> Returns a <see cref="string" /> that represents this instance. </summary>
+            /// <returns> A <see cref="string" /> that represents this instance. </returns>
+            public override string ToString() {
+                return "h '" + Name +"'";
+            }
+        }
+    }
+}
