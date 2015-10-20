@@ -19,6 +19,7 @@ All shared content managers must have the same root path and service provider.
 
 Internally, `SharedContentManager` uses `RefCountedContentManager`, which can also be used separately if desired. 
 As one can guess, `RefCountedContentManager` implements reference counting for assets. 
+
 Each call to `Load<T>` increases asset refcount, each call to `Unload(assetName)` decreases asset refcount. 
 Asset will be released when its refcount reaches 0 or when `Unload()` will be called, since it releases all assets.
 
@@ -43,14 +44,15 @@ Since it is a font, it uses another asset, 2D texture with character glyphs. We 
         string fontTextureName = FontData.GetTextureNameForFont(fontName);
         var fontTexture = content.Load<Texture2D>(fontTextureName);
 
-        using (var stream = TitleContainer.OpenStream(Path.Combine(Game.ContentRoot, fontName)) {
+		string fontPath = Path.Combine(Game.ContentRoot, fontName);
+        using (var stream = TitleContainer.OpenStream(fontPath)) {
             var fontDesc =  FontData.Load(stream);
             return new BMFont(fontTexture, fontDesc);
         }
     });
 
-	// Optional unload step to unload linked assets.
-	// Since the font asset used a texture with glyphs, let's register a function to unload it:
+	// Since the font asset used a texture with glyphs,
+	// let's register a function to unload it:
     CustomAssets.RegisterUnload<BMFont>((content, fontAsset, fontName) => {
         string fontTextureName = FontData.GetTextureNameForFont(fontName);
         content.Unload(fontTextureName);
@@ -58,7 +60,7 @@ Since it is a font, it uses another asset, 2D texture with character glyphs. We 
 
 
 	// Now SharedContentManager and RefCountedContentManager can load a font:
-	game.Content = new SharedContentManager(Game.Services, Game.ContentRoot);
-	var bmFont = Content.Load<BMFont>("Fonts\\Calibri22.fnt");    // Calls registered load function internally
-	// ... and unload it later:
-	Content.Unload("Fonts\\Calibri22.fnt");    // Calls registered unload function internally
+	var sharedContent = new SharedContentManager(Game.Services, Game.ContentRoot);
+	// Following two lines call registered load and unload functions internally.
+	var bmFont = sharedContent.Load<BMFont>("Fonts\\Calibri22.fnt");
+	sharedContent.Unload("Fonts\\Calibri22.fnt");
