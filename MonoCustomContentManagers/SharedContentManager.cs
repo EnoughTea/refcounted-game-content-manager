@@ -9,7 +9,7 @@ namespace MonoCustomContentManagers {
     /// <summary>Content manager which can be used to preserve shared assets: an asset that is loaded for Level #1
     ///  and re-used in Level #2 can be kept in memory instead of being destroyed and reloaded.
     ///  Load Level #2 assets first, then unload Level #1 assets. </summary>
-    /// <remarks>Class is "thread-safe" as in it maintains internal state consistently.
+    /// <remarks>Class is "thread-safe" as in it maintains internal state consistently in individual operations.
     /// You still should lock when you need logical consistency maintained across multiple operations in a sequence,
     ///  e.g.loading an asset from one thread while unloading an asset from another.
     /// </remarks>

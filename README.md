@@ -25,7 +25,7 @@ Asset will be released when its refcount reaches 0 or when `Unload()` will be ca
 
 ### Thread-safety
 
-All methods for `SharedContentManager` uses `RefCountedContentManager` are "thread-safe" as in they maintain internal state consistently no matter what sequence of individual operations are happening on other threads. 
+All methods for `SharedContentManager` uses `RefCountedContentManager` are _thread-safe_ as in they maintain internal state consistently no matter what sequence of individual operations are happening on other threads. 
 You still should lock when you need logical consistency maintained across multiple operations in a sequence.
 
 

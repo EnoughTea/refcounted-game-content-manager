@@ -9,7 +9,7 @@ namespace MonoCustomContentManagers {
     /// <summary> Each <see cref="Load{T}"/> increases asset refcount, each <see cref="Unload(string)"/>
     ///  decreases asset refcount. Asset will be disposed when its refcount reaches 0 or total
     ///  <see cref="Unload()"/> will be called. </summary>
-    /// <remarks>Class is "thread-safe" as in it maintains internal state consistently.
+    /// <remarks>Class is "thread-safe" as in it maintains internal state consistently in individual operations.
     /// You still should lock when you need logical consistency maintained across multiple operations in a sequence,
     ///  e.g.loading an asset from one thread while unloading an asset from another.
     /// </remarks>

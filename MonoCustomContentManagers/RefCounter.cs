@@ -1,13 +1,17 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Threading;
 
 namespace MonoCustomContentManagers {
     /// <summary> Provides simple reference counting for given item type. Calls event handler when
     ///  it is time for an item to be released. </summary>
+    /// <remarks>Class is "thread-safe" as in it maintains internal state consistently in individual operations.
+    /// You still should lock when you need logical consistency maintained across multiple operations in a sequence.
+    /// </remarks>
     /// <typeparam name="TItem">The type of the refcounted item.</typeparam>
-    public class RefCounter<TItem> {
+    internal class RefCounter<TItem> {
         /// <summary> Occurs when an item was retained for the first time. </summary>
         public event Action<TItem> FirstTimeRetained;
 
@@ -27,18 +31,20 @@ namespace MonoCustomContentManagers {
         private readonly object _locker = new object();
 
         /// <summary> Returns true if the specified item is refcounted; false otherwise. </summary>
-        /// <remarks>This method is thread-safe.</remarks>
         /// <param name="item">The item to check.</param>
         /// <returns>Returns true if the specified item is refcounted; false otherwise.</returns>
         public bool Tracked(TItem item) {
+            if (item == null) return false;
+
             ItemRefCount itemRef;
             return _refs.TryGetValue(item, out itemRef);
         }
 
         /// <summary> Increments the refcount for the given item. </summary>
-        /// <remarks>This method is thread-safe.</remarks>
         /// <param name="item">The item that should be retained.</param>
         public void Retain(TItem item) {
+            Contract.Requires(item != null);
+
             _refs.AddOrUpdate(item,
                 _ => {
                     var freshRef = new ItemRefCount(1);
@@ -54,9 +60,10 @@ namespace MonoCustomContentManagers {
         }
 
         /// <summary> Decrements the refcount for the given item. </summary>
-        /// <remarks>This method is thread-safe.</remarks>
         /// <param name="item">The item to release.</param>
         public void Release(TItem item) {
+            Contract.Requires(item != null);
+
             lock (_locker) {
                 ItemRefCount itemRef;
                 if (_refs.TryGetValue(item, out itemRef) && (itemRef.GetCount() > 0)) {
@@ -73,7 +80,6 @@ namespace MonoCustomContentManagers {
         }
 
         /// <summary> Sets refcount to zero for all retained items and releases them. </summary>
-        /// <remarks>This method is thread-safe.</remarks>
         public void Clear() {
             foreach (var refKvp in _refs) {
                 ItemRefCount itemRef;
@@ -93,7 +99,7 @@ namespace MonoCustomContentManagers {
 
 
         /// <summary> Refcount value needs to be a reference type. </summary>
-        /// <remarks> All methods are atomic. </remarks>
+        /// <remarks> All methods are atomic operations. </remarks>
         private class ItemRefCount {
             /// <summary>
             /// Initializes a new instance of the <see cref="RefCounter{TItem}.ItemRefCount" /> class.
