@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("MonoCustomCP")]
+[assembly: AssemblyTitle("MonoCustomContentManagers")]
 [assembly: AssemblyDescription("Custom content pipeline helpers")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("MonoCustomCP")]
+[assembly: AssemblyProduct("MonoCustomContentManagers")]
 [assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

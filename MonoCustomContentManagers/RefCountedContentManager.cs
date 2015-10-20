@@ -5,12 +5,14 @@ using System.Threading;
 using Microsoft.Xna.Framework.Content;
 using System.Diagnostics.Contracts;
 
-namespace MonoCustomCP {
+namespace MonoCustomContentManagers {
     /// <summary> Each <see cref="Load{T}"/> increases asset refcount, each <see cref="Unload(string)"/>
     ///  decreases asset refcount. Asset will be disposed when its refcount reaches 0 or total
     ///  <see cref="Unload()"/> will be called. </summary>
-    /// <remarks>All methods are thread-safe, but you still should sync them when needed,
-    ///  e.g. loading from one thread while unloading from another. </remarks>
+    /// <remarks>Class is "thread-safe" as in it maintains internal state consistently.
+    /// You still should lock when you need logical consistency maintained across multiple operations in a sequence,
+    ///  e.g.loading an asset from one thread while unloading an asset from another.
+    /// </remarks>
     public class RefCountedContentManager : ContentManager {
         /// <summary> Initializes a new instance of the <see cref="RefCountedContentManager" /> class. </summary>
         /// <param name="serviceProvider">The service provider.</param>
@@ -21,7 +23,7 @@ namespace MonoCustomCP {
             _references = new RefCounter<AssetHandle>();
             _references.Released += commonAsset => {
                 if (_assets.TryRemove(commonAsset.Name, out commonAsset)) {
-                    var customDisposal = CustomContentPipeline.FindUnload(commonAsset.Asset?.GetType());
+                    var customDisposal = CustomAssets.FindUnload(commonAsset.Asset?.GetType());
                     customDisposal?.Invoke(this, commonAsset.Asset, commonAsset.Name);
                     commonAsset.Dispose();  // Possible multiple dispose calls should be okay.
                 }
@@ -38,9 +40,9 @@ namespace MonoCustomCP {
         /// <param name="assetName">Name of the asset.</param>
         /// <returns>Found asset or null.</returns>
         public T Find<T>(string assetName) {
-            Contract.Requires(!String.IsNullOrEmpty(assetName));
+            Contract.Requires(!string.IsNullOrEmpty(assetName));
 
-            assetName = CustomContentPipeline.GetCleanPath(assetName);
+            assetName = CustomAssets.CleanAssetPath(assetName);
             var found = default(T);
             AssetHandle assetHandle;
             if (_assets.TryGetValue(assetName, out assetHandle)) {
@@ -56,9 +58,9 @@ namespace MonoCustomCP {
         /// <param name="assetName">Name of the asset.</param>
         /// <returns>Loaded or found asset.</returns>
         public override T Load<T>(string assetName) {
-            Contract.Requires(!String.IsNullOrEmpty(assetName));
+            Contract.Requires(!string.IsNullOrEmpty(assetName));
 
-            assetName = CustomContentPipeline.GetCleanPath(assetName);
+            assetName = CustomAssets.CleanAssetPath(assetName);
             object loadedAsset = null;
             _assets.AddOrUpdate(assetName,
                 _ => {
@@ -87,9 +89,9 @@ namespace MonoCustomCP {
         /// <summary> Unloads asset with the specified asset name. Decreases asset refcount. </summary>
         /// <param name="assetName">Name of the asset to unload.</param>
         public void Unload(string assetName) {
-            Contract.Requires(!String.IsNullOrEmpty(assetName));
+            Contract.Requires(!string.IsNullOrEmpty(assetName));
 
-            assetName = CustomContentPipeline.GetCleanPath(assetName);
+            assetName = CustomAssets.CleanAssetPath(assetName);
             AssetHandle assetHandle;
             if (_assets.TryGetValue(assetName, out assetHandle)) {
                 _references.Release(assetHandle);
@@ -105,15 +107,15 @@ namespace MonoCustomCP {
         /// <summary> Loads asset either via custom load method for an asset or built-in
         ///  <see cref="ContentManager.ReadAsset{T}"/>. </summary>
         private object CustomLoad<T>(string assetName) {
-            Contract.Requires(!String.IsNullOrEmpty(assetName));
+            Contract.Requires(!string.IsNullOrEmpty(assetName));
             Contract.Ensures(Contract.Result<object>() != null);
 
             object asset;
-            var customLoad = CustomContentPipeline.FindLoad(typeof(T));
+            var customLoad = CustomAssets.FindLoad(typeof(T));
             if (customLoad != null) {   // There is a custom load method for current asset type.
                 asset = customLoad(this, assetName);
                 if (asset == null) {
-                    throw new ContentLoadException("Custom loading failed for asset '" + assetName + "'");
+                    throw new ContentLoadException($"Custom loading failed for asset '{assetName}'");
                 }
             } else {    // We are loading a standard asset.
                 asset = ReadAsset<T>(assetName, _ => { });
@@ -134,7 +136,7 @@ namespace MonoCustomCP {
             /// <summary> Returns a <see cref="string" /> that represents this instance. </summary>
             /// <returns> A <see cref="string" /> that represents this instance. </returns>
             public override string ToString() {
-                return "h '" + Name +"'";
+                return Asset != null ? $"h '{Name}'" : $"h '{Name}' (null)";
             }
         }
     }
