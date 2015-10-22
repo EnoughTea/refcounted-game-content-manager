@@ -48,7 +48,7 @@ namespace MonoCustomContentManagers {
             _refs.AddOrUpdate(item,
                 _ => {
                     var freshRef = new ItemRefCount(1);
-                    Volatile.Read(ref FirstTimeRetained)?.Invoke(item);
+                    FirstTimeRetained.Raise(item);
                     return freshRef;
                 },
 
@@ -56,7 +56,7 @@ namespace MonoCustomContentManagers {
                     existingRef.Inc();
                     return existingRef;
                 });
-            Volatile.Read(ref Incremented)?.Invoke(item);
+            Incremented.Raise(item);
         }
 
         /// <summary> Decrements the refcount for the given item. </summary>
@@ -68,13 +68,13 @@ namespace MonoCustomContentManagers {
                 ItemRefCount itemRef;
                 if (_refs.TryGetValue(item, out itemRef) && (itemRef.GetCount() > 0)) {
                     itemRef.Dec();
-                    Volatile.Read(ref Decremented)?.Invoke(item);
+                    Decremented.Raise(item);
                     if (itemRef.IsZero() && _refs.TryRemove(item, out itemRef)) {
-                        Volatile.Read(ref Released)?.Invoke(item);
+                        Released.Raise(item);
                     }
                 } else {
                     // Retain() was never called, so assume there is only one reference, which is now calling Release().
-                    Volatile.Read(ref Released)?.Invoke(item);
+                    Released.Raise(item);
                 }
             }
         }
@@ -85,8 +85,8 @@ namespace MonoCustomContentManagers {
                 ItemRefCount itemRef;
                 if (_refs.TryRemove(refKvp.Key, out itemRef)) {
                     itemRef.SetToZero();
-                    Volatile.Read(ref Decremented)?.Invoke(refKvp.Key);
-                    Volatile.Read(ref Released)?.Invoke(refKvp.Key);
+                    Decremented.Raise(refKvp.Key);
+                    Released.Raise(refKvp.Key);
                 }
             }
         }

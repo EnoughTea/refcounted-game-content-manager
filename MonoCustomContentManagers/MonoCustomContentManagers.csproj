@@ -123,6 +123,7 @@
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="DelegateExtensions.cs" />
     <Compile Include="CustomAssets.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RefCountedContentManager.cs" />
