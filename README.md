@@ -64,3 +64,7 @@ Since it is a font, it uses another asset, 2D texture with character glyphs. We 
     // Following two lines call registered load and unload functions internally.
     var bmFont = sharedContent.Load<BMFont>("Fonts\\Calibri22.fnt");
     sharedContent.Unload("Fonts\\Calibri22.fnt");
+
+#Credits
+
+Inspired by the idea from a [blog of Renaud Bédard](http://theinstructionlimit.com/a-shared-content-manager-for-xna).
