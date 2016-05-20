@@ -29,7 +29,7 @@ namespace MonoCustomContentManagers {
         public SharedContentManager(IServiceProvider serviceProvider, string rootDirectory)
             : base(serviceProvider, rootDirectory) {
 
-            lock (RealManagerLocker) {
+            lock (_RealManagerLocker) {
                 if (_realManager == null) {
                     _realManager = new RefCountedContentManager(serviceProvider, rootDirectory);
                 } else if (_realManager.ServiceProvider != serviceProvider ||
@@ -42,16 +42,19 @@ namespace MonoCustomContentManagers {
             _loadedAssets = new HashSet<string>();
         }
 
-        private static readonly object RealManagerLocker = new object();
+        private static readonly object _RealManagerLocker = new object();
         private static RefCountedContentManager _realManager;    // Holds assets shared between all managers.
         private readonly HashSet<string> _loadedAssets;  // Shows assets loaded via this manager.
 
-        /// <summary> Loads an asset  </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <summary> Loads an asset. </summary>
+        /// <typeparam name="T">Asset type.</typeparam>
         /// <param name="assetName">Name of the asset.</param>
-        /// <returns></returns>
+        /// <returns>Loaded or found asset.</returns>
+        /// <exception cref="ArgumentException">Null or empty asset name.</exception>
         public override T Load<T>(string assetName) {
-            Contract.Requires(!string.IsNullOrEmpty(assetName));
+            if (string.IsNullOrEmpty(assetName)) {
+                throw new ArgumentException("Null or empty asset name.", nameof(assetName));
+            }
 
             assetName = CustomAssets.CleanAssetPath(assetName);
             lock (_loadedAssets) {
@@ -61,6 +64,8 @@ namespace MonoCustomContentManagers {
             return _realManager.Load<T>(assetName);
         }
 
+        /// <summary> Unloads an asset. </summary>
+        /// <param name="assetName">Name of the asset.</param>
         public void Unload(string assetName) {
             Contract.Requires(!string.IsNullOrEmpty(assetName));
 

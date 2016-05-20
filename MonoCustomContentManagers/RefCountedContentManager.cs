@@ -57,8 +57,11 @@ namespace MonoCustomContentManagers {
         /// <typeparam name="T">Asset type.</typeparam>
         /// <param name="assetName">Name of the asset.</param>
         /// <returns>Loaded or found asset.</returns>
+        /// <exception cref="ArgumentException">Null or empty asset name.</exception>
         public override T Load<T>(string assetName) {
-            Contract.Requires(!string.IsNullOrEmpty(assetName));
+            if(string.IsNullOrEmpty(assetName)) {
+                throw new ArgumentException("Null or empty asset name.", nameof(assetName));
+            }
 
             assetName = CustomAssets.CleanAssetPath(assetName);
             object loadedAsset = null;

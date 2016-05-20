@@ -35,32 +35,32 @@ You still should lock when you need logical consistency maintained across multip
 Sometimes you want to quckly add loading/unloading functions for the custom asset types without "properly" extending content pipeline by writing `MyCustomDataTypeReader/Writer` and `MyCustomDataProcessor` classes. 
 As an added bonus, with `SharedContentManager` uses `RefCountedContentManager` you can easily add custom load/unload functions.
 
-So let's teach content managers how to load some custom asset type, named [BMFont](https://github.com/EnoughTea/MonoBMFont). 
+So let's teach content managers how to load some custom asset type. It could be [BMFont](https://github.com/EnoughTea/MonoBMFont). 
 Since it is a font, it uses another asset, 2D texture with character glyphs. We will have to deal with it as well.
 
 
-	// Tell content managers how to properly load BMFont by registering a load function:
-	CustomAssets.RegisterLoad<BMFont>((content, fontName) => {
+    // Tell content managers how to properly load a custom font class by registering a load function:
+    CustomAssets.RegisterLoad<BMFont>((content, fontName) => {
         string fontTextureName = FontData.GetTextureNameForFont(fontName);
         var fontTexture = content.Load<Texture2D>(fontTextureName);
 
-		string fontPath = Path.Combine(Game.ContentRoot, fontName);
+        string fontPath = Path.Combine(Game.ContentRoot, fontName);
         using (var stream = TitleContainer.OpenStream(fontPath)) {
             var fontDesc =  FontData.Load(stream);
             return new BMFont(fontTexture, fontDesc);
         }
     });
 
-	// Since the font asset used a texture with glyphs,
-	// let's register a function to unload it:
+    // Since the font asset used a texture with glyphs,
+    // let's register a function to unload it:
     CustomAssets.RegisterUnload<BMFont>((content, fontAsset, fontName) => {
         string fontTextureName = FontData.GetTextureNameForFont(fontName);
         content.Unload(fontTextureName);
     });
 
 
-	// Now SharedContentManager and RefCountedContentManager can load a font:
-	var sharedContent = new SharedContentManager(Game.Services, Game.ContentRoot);
-	// Following two lines call registered load and unload functions internally.
-	var bmFont = sharedContent.Load<BMFont>("Fonts\\Calibri22.fnt");
-	sharedContent.Unload("Fonts\\Calibri22.fnt");
+    // Now SharedContentManager and RefCountedContentManager can load a font:
+    var sharedContent = new SharedContentManager(Game.Services, Game.ContentRoot);
+    // Following two lines call registered load and unload functions internally.
+    var bmFont = sharedContent.Load<BMFont>("Fonts\\Calibri22.fnt");
+    sharedContent.Unload("Fonts\\Calibri22.fnt");
