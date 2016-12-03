@@ -23,6 +23,18 @@ namespace MonoCustomContentManagers
         {
         }
 
+        /// <summary>Gets or sets the content root directory.
+        /// NOTE: Base class <see cref="ContentManager.RootDirectory"/> is non-virtual,
+        /// so if you want to set <see cref="RootDirectory"/> on a variable of the <see cref="ContentManager"/> type,
+        /// cast it to <see cref="SharedContentManager"/> first. </summary>
+        public new virtual string RootDirectory {
+            get { return base.RootDirectory; }
+            set {
+                base.RootDirectory = value;
+                _realManager.RootDirectory = value;
+            }
+        }
+
         /// <summary> Initializes a new instance of the <see cref="SharedContentManager"/> class. </summary>
         /// <param name="serviceProvider">The service provider, must be the same for all shared managers. </param>
         /// <param name="rootDirectory">Content root path, must be the same for all shared managers. </param>
