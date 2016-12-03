@@ -83,13 +83,14 @@ namespace MonoCustomContentManagers
                 _ => {
                     var freshRef = new ItemRefCount(1);
                     FirstTimeRetained.Call(item);
+                    Incremented.Call(item);
                     return freshRef;
                 },
                 (_, existingRef) => {
                     existingRef.Inc();
+                    Incremented.Call(item);
                     return existingRef;
                 });
-            Incremented.Call(item);
         }
 
         /// <summary> Returns a <see cref="string" /> that represents this instance. </summary>
