@@ -31,7 +31,11 @@ namespace MonoCustomContentManagers
             get { return base.RootDirectory; }
             set {
                 base.RootDirectory = value;
-                _realManager.RootDirectory = value;
+                lock (_RealManagerLocker) {
+                    if (_realManager != null) {
+                        _realManager.RootDirectory = value;
+                    }
+                }
             }
         }
 
